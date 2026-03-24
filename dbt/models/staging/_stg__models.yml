@@ -1,0 +1,75 @@
+# =============================================================================
+# Staging Models — schema definitions, documentation, and tests
+# =============================================================================
+
+version: 2
+
+models:
+  - name: stg_yellow_trips
+    description: >
+      Cleaned yellow taxi trip records. Column names standardised to snake_case,
+      types cast from parquet defaults, trip_duration_minutes computed, and
+      surrogate key generated. No filtering applied — all raw records preserved.
+    columns:
+      - name: trip_id
+        description: "Surrogate key — MD5 hash of pickup/dropoff times, locations, fare, and distance"
+        tests:
+          - not_null
+          - unique
+      - name: vendor_id
+        description: "LPEP provider code (1=Creative Mobile, 2=VeriFone)"
+      - name: pickup_datetime
+        description: "Trip pickup timestamp"
+        tests:
+          - not_null
+      - name: dropoff_datetime
+        description: "Trip dropoff timestamp"
+        tests:
+          - not_null
+      - name: passenger_count
+        description: "Number of passengers (driver-entered, may be 0 or null)"
+      - name: trip_distance
+        description: "Trip distance in miles from meter"
+      - name: pickup_location_id
+        description: "TLC taxi zone ID for pickup"
+        tests:
+          - not_null
+      - name: dropoff_location_id
+        description: "TLC taxi zone ID for dropoff"
+        tests:
+          - not_null
+      - name: payment_type
+        description: "Payment method code"
+        tests:
+          - accepted_values:
+                arguments:
+                    values: [1, 2, 3, 4, 5, 0]
+                config:
+                    severity: warn
+      - name: fare_amount
+        description: "Time-and-distance meter fare in USD"
+      - name: tip_amount
+        description: "Tip amount in USD (only auto-populated for credit card payments)"
+      - name: total_amount
+        description: "Total amount charged to passenger"
+      - name: trip_duration_minutes
+        description: "Computed trip duration in minutes (dropoff - pickup)"
+
+  - name: stg_taxi_zones
+    description: >
+      Taxi zone reference data. 265 zones across NYC boroughs.
+      Sourced from TLC zone lookup CSV loaded as a DBT seed.
+    columns:
+      - name: location_id
+        description: "Unique TLC zone identifier"
+        tests:
+          - not_null
+          - unique
+      - name: borough
+        description: "NYC borough name (Manhattan, Brooklyn, Queens, Bronx, Staten Island, EWR, Unknown)"
+      - name: zone_name
+        description: "Human-readable zone name (e.g., JFK Airport, Midtown Center)"
+        tests:
+          - not_null
+      - name: service_zone
+        description: "Service zone classification (Yellow Zone, Boro Zone, Airports, EWR, N/A)"

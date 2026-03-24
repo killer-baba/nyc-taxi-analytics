@@ -1,0 +1,129 @@
+version: 2
+
+models:
+  - name: fct_trips
+    description: >
+      Core fact table containing all valid, enriched yellow taxi trips for 2023.
+      Data quality filters applied upstream: no zero-distance, zero-fare,
+      zero-passenger, or unreasonable-duration trips.
+    columns:
+      - name: trip_id
+        description: "Surrogate key — MD5 hash uniquely identifying each trip"
+        tests:
+          - not_null
+          - unique
+      - name: pickup_datetime
+        description: "Trip pickup timestamp"
+        tests:
+          - not_null
+      - name: dropoff_datetime
+        description: "Trip dropoff timestamp"
+        tests:
+          - not_null
+      - name: pickup_location_id
+        description: "TLC zone ID for pickup"
+        tests:
+          - not_null
+          - relationships:
+                arguments:
+                    to: ref('dim_zones')
+                    field: location_id
+      - name: dropoff_location_id
+        description: "TLC zone ID for dropoff"
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                    to: ref('dim_zones')
+                    field: location_id
+      - name: payment_type
+        description: "Payment method (1=Credit, 2=Cash, 3=No charge, 4=Dispute)"
+      - name: fare_amount
+        description: "Meter fare in USD"
+      - name: tip_amount
+        description: "Tip in USD"
+      - name: total_amount
+        description: "Total charged to passenger"
+      - name: trip_duration_minutes
+        description: "Trip duration in minutes"
+        tests:
+          - value_in_range:
+              min_value: 1
+              max_value: 180
+      - name: trip_distance
+        description: "Trip distance in miles"
+      - name: passenger_count
+        description: "Number of passengers"
+      - name: pickup_zone_name
+        description: "Human-readable pickup zone name"
+      - name: dropoff_zone_name
+        description: "Human-readable dropoff zone name"
+
+  - name: dim_zones
+    description: >
+      Dimension table for NYC TLC taxi zones. 265 zones across
+      five boroughs plus EWR and Unknown.
+    columns:
+      - name: location_id
+        description: "Unique TLC zone identifier (PK)"
+        tests:
+          - not_null
+          - unique
+      - name: borough
+        description: "NYC borough name"
+        tests:
+          - not_null
+      - name: zone_name
+        description: "Human-readable zone name"
+        tests:
+          - not_null
+      - name: service_zone
+        description: "Service classification (Yellow Zone, Boro Zone, Airports, EWR, N/A)"
+
+  - name: agg_daily_revenue
+    description: >
+      Daily revenue aggregation. One row per calendar day with trip counts,
+      fare totals, averages, tip totals, and tip rate percentage.
+    columns:
+      - name: trip_date
+        description: "Calendar date (PK)"
+        tests:
+          - not_null
+          - unique
+      - name: total_trips
+        description: "Number of valid trips on this date"
+      - name: total_fare
+        description: "Sum of fare_amount across all trips"
+      - name: avg_fare
+        description: "Average fare per trip"
+      - name: total_tips
+        description: "Sum of tip_amount across all trips"
+      - name: tip_rate_pct
+        description: "Tip rate as percentage of total fare (aggregate ratio)"
+
+  - name: agg_zone_performance
+    description: >
+      Monthly zone-level performance metrics. Ranked by revenue within each month
+      (see brainstormer justification in model SQL). Includes high-volume flag
+      for zones exceeding 10,000 trips per month.
+    columns:
+      - name: pickup_location_id
+        description: "TLC zone ID for pickup location"
+        tests:
+          - not_null
+      - name: trip_month
+        description: "First day of the month"
+        tests:
+          - not_null
+      - name: total_trips
+        description: "Number of trips originating from this zone in this month"
+      - name: avg_trip_distance
+        description: "Average trip distance in miles"
+      - name: avg_fare
+        description: "Average fare per trip"
+      - name: total_revenue
+        description: "Sum of total_amount for the zone-month"
+      - name: revenue_rank
+        description: "Revenue rank within the month (1 = highest revenue zone)"
+      - name: is_high_volume
+        description: "TRUE if zone had more than 10,000 trips in the month"

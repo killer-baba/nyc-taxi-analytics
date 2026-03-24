@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: int_trips_enriched
+    description: >
+      Enriched and validated trip records. Zone names resolved via lookup join,
+      invalid records filtered out (zero distance, zero fare, zero passengers,
+      unreasonable durations). This is the single source of truth for all
+      downstream mart models.
+    columns:
+      - name: trip_id
+        description: "Surrogate key inherited from staging"
+        tests:
+          - not_null
+          - unique
+      - name: pickup_zone_name
+        description: "Human-readable pickup zone name from TLC lookup"
+      - name: dropoff_zone_name
+        description: "Human-readable dropoff zone name from TLC lookup"
+      - name: trip_duration_minutes
+        description: "Trip duration in minutes (filtered: 1 ≤ duration ≤ 180)"
+      - name: trip_distance
+        description: "Trip distance in miles (filtered: > 0)"
+      - name: fare_amount
+        description: "Meter fare in USD (filtered: > 0)"
+      - name: passenger_count
+        description: "Passenger count (filtered: > 0, not null)"

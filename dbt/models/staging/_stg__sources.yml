@@ -1,0 +1,51 @@
+# =============================================================================
+# Staging Sources — raw data not managed by DBT
+# =============================================================================
+# Sources declare external tables that exist in the warehouse.
+# Freshness checks alert when upstream data delivery is delayed.
+# =============================================================================
+
+version: 2
+
+sources:
+  - name: nyc_taxi
+    description: "NYC TLC Yellow Taxi trip data loaded into Snowflake RAW schema"
+    database: NYC_TAXI_DB
+    schema: RAW
+
+    config:
+      loaded_at_field: tpep_pickup_datetime
+      freshness:
+        warn_after:
+          count: 12
+          period: hour
+        error_after:
+          count: 24
+          period: hour
+
+    tables:
+      - name: yellow_tripdata
+        description: "Raw yellow taxi trip records — 2023, ~38.3M rows"
+        columns:
+          - name: VendorID
+            description: "LPEP provider code (1=Creative Mobile, 2=VeriFone)"
+          - name: tpep_pickup_datetime
+            description: "Pickup timestamp"
+          - name: tpep_dropoff_datetime
+            description: "Dropoff timestamp"
+          - name: passenger_count
+            description: "Number of passengers (driver-entered)"
+          - name: trip_distance
+            description: "Trip distance in miles (meter reading)"
+          - name: PULocationID
+            description: "TLC pickup zone ID"
+          - name: DOLocationID
+            description: "TLC dropoff zone ID"
+          - name: payment_type
+            description: "Payment method (1=Credit, 2=Cash, 3=No charge, 4=Dispute)"
+          - name: fare_amount
+            description: "Time-and-distance meter fare"
+          - name: tip_amount
+            description: "Tip (auto-populated for credit card, cash tips not recorded)"
+          - name: total_amount
+            description: "Total charged to passenger (fare + extras + tips + tolls + surcharges)"

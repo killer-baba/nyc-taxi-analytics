@@ -27,4 +27,14 @@ for month in MONTHS:
     urllib.request.urlretrieve(url, filepath)
     print(f"Done: {filename}")
 
+# Download zone lookup CSV
+zone_file = os.path.join("data", "taxi_zone_lookup.csv")
+if not os.path.exists(zone_file):
+    print("Downloading: taxi_zone_lookup.csv...")
+    urllib.request.urlretrieve(
+        "https://d37ci6vzurychx.cloudfront.net/misc/taxi_zone_lookup.csv",
+        zone_file
+    )
+    print("Done: taxi_zone_lookup.csv")
+
 print("\nAll files downloaded.")
