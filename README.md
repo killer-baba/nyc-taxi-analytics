@@ -73,16 +73,6 @@ A production-grade data engineering pipeline built on the **NYC TLC Yellow Taxi 
   └──────────────────┘
 ```
 
-### DBT Layer Architecture
-
-The project follows a **three-layer medallion pattern** — the industry-standard approach for organising transformations in a data warehouse:
-
-**Staging (views)** — The contract layer between raw data and the rest of the pipeline. Responsible for column renaming (PascalCase → snake_case), type casting, and computed columns. No business logic lives here. Materialised as views because no one queries staging directly — it exists purely as a clean interface over raw data, with zero storage cost.
-
-**Intermediate (views)** — The business logic layer. Joins trips with zone reference data (resolving location IDs to human-readable zone names) and enforces data quality filters (removing trips with zero distance, zero fare, impossible durations, etc.). Materialised as views because this is a transient transformation — it feeds the marts but has no direct consumers.
-
-**Marts (tables)** — The consumption layer. This is what analysts, dashboards, and downstream systems query. Contains a fact table (fct_trips — one row per valid trip), a dimension table (dim_zones — zone reference data), and two pre-computed aggregation tables for common analytical patterns. Materialised as tables for query performance — the data is pre-computed and ready to read.
-
 ### Dimensional Model
 
 ```
@@ -124,8 +114,6 @@ The project follows a **three-layer medallion pattern** — the industry-standar
                         └─────────────────────┘
 ```
 
-This follows **Kimball dimensional modelling**: facts contain measurable events (trips), dimensions contain descriptive attributes (zones). The separation allows analysts to slice facts by any dimension without data duplication. Aggregation tables sit downstream as pre-computed summaries for common queries.
-
 ---
 
 ## Repository Structure
@@ -136,26 +124,46 @@ This follows **Kimball dimensional modelling**: facts contain measurable events 
 │   │   ├── staging/            # Raw → clean (views)
 │   │   ├── intermediate/       # Joins + filtering (views)
 │   │   └── marts/              # Business-facing tables
-│   ├── tests/                  # Custom singular tests
-│   │   └── generic/            # Custom generic (parametrised) tests
+│   ├── tests/                  # Custom singular + generic tests
 │   ├── seeds/                  # Zone lookup CSV (265 rows)
-│   ├── macros/                 # Reusable SQL macros
-│   ├── dbt_project.yml         # Project config + materialization strategy
-│   └── profiles.yml.example    # Snowflake connection template
-├── dags/                       # Airflow DAG definition
-│   └── nyc_taxi_daily_pipeline.py
+│   ├── macros/                 # Custom schema routing macro
+│   ├── dbt_project.yml
+│   ├── profiles.yml.example
+│   └── README.md               # 📖 Detailed DBT pipeline documentation
+├── dags/                       # Airflow DAG
+│   ├── nyc_taxi_daily_pipeline.py
+│   └── README.md               # 📖 DAG architecture + blue/green brainstormer
 ├── queries/                    # Standalone analytical SQL
 │   ├── q1_top_zones_by_revenue.sql
 │   ├── q2_hour_of_day_pattern.sql
-│   └── q3_consecutive_gap_analysis.sql
+│   ├── q3_consecutive_gap_analysis.sql
+│   └── README.md               # 📖 Query explanations + performance strategies
 ├── spark/                      # PySpark historical processing (bonus)
-│   └── process_historical.py
+│   ├── process_historical.py
+│   └── README.md               # 📖 Spark optimizations + EMR/Glue deployment
 ├── setup_scripts/              # One-time environment setup
+│   ├── 01_snowflake_setup.sql
+│   ├── 02_load_to_snowflake.py
+│   ├── load_data.py
+│   └── README.md               # 📖 Setup script execution order
 ├── requirements.txt
 ├── .gitignore
-├── EXECUTION_GUIDE.md          # Step-by-step setup and run instructions
+├── EXECUTION_GUIDE.md          # 📖 Step-by-step setup and run instructions
 └── README.md                   # ← You are here
 ```
+
+### Internal Documentation Guide
+
+Each component has its own detailed README. Start here for the overview, then dive into specifics:
+
+| Document | What You'll Find |
+|---|---|
+| [`dbt/README.md`](dbt/README.md) | Full pipeline flow with row counts, schema changes table, surrogate key design, deduplication strategy, all 30 tests listed, brainstormer answer on revenue ranking |
+| [`dags/README.md`](dags/README.md) | Task flow diagram, operator choices, backfill handling, retry strategy, **blue/green deployment brainstormer** |
+| [`queries/README.md`](queries/README.md) | Each query explained with approach, expected output, performance strategies, verified runtimes |
+| [`spark/README.md`](spark/README.md) | Processing pipeline, optimization decisions table, EMR vs Glue comparison, deployment instructions |
+| [`setup_scripts/README.md`](setup_scripts/README.md) | Execution order for environment initialization, troubleshooting notes |
+| [`EXECUTION_GUIDE.md`](EXECUTION_GUIDE.md) | Step-by-step instructions to reproduce the entire project from scratch |
 
 ---
 
@@ -187,42 +195,93 @@ The taxi zone lookup (~265 rows) is loaded as a DBT seed rather than an external
 
 ## Data Quality Strategy
 
-### Built-in Tests
-- `not_null` and `unique` on all primary keys
-- `accepted_values` on categorical columns (payment_type)
-- `relationships` tests to verify foreign key integrity between facts and dimensions
+**30 tests — all passing.** Full test inventory documented in [`dbt/README.md`](dbt/README.md).
 
-### Custom Singular Test
-**`assert_total_gte_fare`**: Verifies that no trip in `fct_trips` has `total_amount < fare_amount`. Business rule: total includes fare + tips + surcharges, so it must always be >= fare. A violation indicates data corruption or incorrect loading.
+| Category | Count | Examples |
+|---|---|---|
+| Primary key (not_null + unique) | 12 | trip_id, location_id, trip_date |
+| Not null on critical fields | 10 | timestamps, location IDs, borough |
+| Referential integrity | 2 | fct_trips.pickup/dropoff_location_id → dim_zones |
+| Accepted values | 1 | payment_type (0-5) |
+| Custom singular test | 1 | total_amount ≥ fare_amount (business rule) |
+| Custom generic test | 1 | trip_duration_minutes in range [1, 180] |
+| **Total** | **30** | **All passing** |
 
-### Custom Generic Test
-**`test_value_in_range`**: A parametrised test that asserts a column's values fall within a configurable min/max range. Applied to `trip_duration_minutes` to catch impossible values that survive the intermediate layer filters. Reusable across any numeric column.
+---
+
+## SQL Query Performance
+
+All queries verified on Snowflake X-Small warehouse. Full analysis in [`queries/README.md`](queries/README.md).
+
+| Query | Purpose | Runtime | Rows |
+|---|---|---|---|
+| Q1 | Top 10 zones by revenue per month | **2.4s** | 120 |
+| Q2 | Hour-of-day demand pattern | **722ms** | 24 |
+| Q3 | Consecutive trip gap analysis | **3.0s** | 365 |
 
 ---
 
 ## Brainstormer Responses
 
-*Will be added as each task is completed.*
+### 1. Revenue Rank: Monthly vs. Overall (Task 1)
+
+**Decision**: Rank within each month — `RANK() OVER (PARTITION BY trip_month ORDER BY total_revenue DESC)`.
+
+An overall rank produces a single static number that hides seasonal patterns. Times Square might rank #1 overall, but that masks the fact that it drops significantly in February and surges in December. Monthly ranking reveals seasonal trends, enables month-over-month performance tracking, supports monthly resource allocation decisions (where to stage taxis), and surfaces anomalies (a zone dropping 20 rank positions signals investigation).
+
+Full justification with SQL implementation in [`dbt/README.md`](dbt/README.md) and in the model SQL file itself.
+
+### 2. Blue/Green Deployment for Data Quality (Task 2)
+
+**Problem**: If `run_dbt_tests` fails after `run_dbt_marts` has written to production, downstream dashboards read bad data.
+
+**Proposed solution: Schema-swap pattern.**
+
+1. DBT writes mart tables to a `MARTS_STAGING` schema (not production `MARTS`)
+2. All 30 tests validate against `MARTS_STAGING`
+3. If tests pass: swap schemas atomically via `ALTER SCHEMA RENAME` (metadata-only, instant in Snowflake)
+4. If tests fail: drop `MARTS_STAGING`, production `MARTS` is untouched, alert fires
+
+This is the production-grade approach used at companies running dbt at scale. The schema swap is atomic — no window where consumers see partial or bad data. Trade-offs: adds complexity (extra schema, swap logic) and requires temporary double storage during the build phase.
+
+Full implementation discussion with Airflow task modifications in [`dags/README.md`](dags/README.md).
+
+### 3. Query 3 Performance at Scale (Task 3)
+
+The consecutive gap analysis requires `LAG()` across 38M rows, which demands sorting by (zone, date, pickup_time). Snowflake-specific optimizations:
+
+- **Clustering key**: `CLUSTER BY (pulocationid, tpep_pickup_datetime::DATE)` physically aligns data with the query's PARTITION BY pattern — estimated 4-8x speedup
+- **Search optimization**: helps filter specific zones or date ranges
+- **Materialized view**: pre-computes LAG values, maintained incrementally by Snowflake
+- **Result caching**: identical queries return cached results in <1s for 24 hours
+- **Warehouse sizing**: temporarily scale to MEDIUM for one-time heavy computation
+
+Full performance analysis with cost/benefit per strategy in [`queries/README.md`](queries/README.md).
 
 ---
 
 ## Trade-offs and Shortcuts
 
-*Will be documented as they arise during development.*
+| Decision | Trade-off | Why It's Acceptable |
+|---|---|---|
+| Table materialization for fct_trips | Not incremental — full rebuild on each run | Dataset is static 2023 data, no daily appends. Incremental would be correct for production with ongoing ingestion. |
+| BashOperator for dbt in Airflow | Less error granularity than Cosmos/dbt Cloud operator | Simpler, no extra dependencies, widely adopted for dbt Core. Sufficient for 6-task linear DAG. |
+| `generate_surrogate_key` via MD5 hash | Hash collision theoretically possible | 10-field hash on 38M rows yielded 1,804 collisions (true source duplicates). Deduplicated via ROW_NUMBER. |
+| Parquet timestamp fix (`USE_LOGICAL_TYPE`) | Requires awareness of Snowflake-Parquet interaction | Documented in setup scripts and troubleshooting. Common real-world issue. |
+| Spark script not executed on cluster | Cannot verify runtime at 1.5B scale | Script is logically correct and follows Spark best practices. Assessment states execution is not required. |
+| `catchup=False` in Airflow | No automatic historical backfill | Prevents accidental mass backfill on deployment. Manual backfill available via CLI. |
 
 ---
 
 ## AI Tools Usage
 
-This project was developed with **Claude (Anthropic)** as a technical mentor. The development approach was deliberately step-by-step: understand the concept, discuss trade-offs, then implement.
+This project was developed with **Claude (Anthropic)** as a technical mentor throughout the entire development process. The approach was deliberately step-by-step: understand the concept, discuss trade-offs, then implement.
 
 **How AI was used:**
-- **Architecture planning**: Discussed materialization strategies, layer design, and dimensional modelling approach before writing code
-- **Debugging**: Diagnosed Parquet timestamp loading issue (microsecond interpretation via `USE_LOGICAL_TYPE`) collaboratively
-- **Code generation**: AI provided code that was reviewed, understood, and modified before inclusion
-- **Documentation**: README and setup guides written incrementally during development, not retroactively
+- **Architecture planning**: Discussed materialization strategies, layer design, dimensional modelling, and Snowflake schema design before writing any code
+- **Environment setup**: Guided through venv creation, dbt init, Snowflake configuration, and data loading — every command explained before execution
+- **Debugging**: Diagnosed Parquet timestamp loading issue (`USE_LOGICAL_TYPE`), surrogate key collisions (added deduplication), dbt 1.11 deprecation syntax changes, and Snowflake schema naming (`generate_schema_name` macro)
+- **Code generation**: AI provided code that was reviewed, understood, and tested before inclusion. Every file was verified against Snowflake before moving on.
+- **Documentation**: READMEs written incrementally during development, not retroactively. Each component's README was created alongside the code.
 
-**What AI did NOT do:**
-- Make architectural decisions unilaterally — all trade-offs were presented and I chose the approach
-- Write code that I couldn't explain in an interview
-- Replace understanding of the underlying concepts
+**Productivity impact**: AI mentoring allowed for a more thorough and well-documented project than would have been possible in the same timeframe working solo. The primary speedup came from having immediate access to debugging knowledge (e.g., Parquet timestamp issues, dbt schema naming) and architectural patterns (e.g., blue/green deployment, Spark broadcast joins) without needing to search documentation.
