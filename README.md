@@ -19,6 +19,12 @@ A production-grade data engineering pipeline built on the **NYC TLC Yellow Taxi 
 | Language        | SQL (Snowflake), Python 3.11        |                                                                           |
 
 ---
+---
+
+> **To set up and run this project?**
+See [`EXECUTION_GUIDE.md`](execution_guide.md) for step-by-step instructions from scratch.
+
+---
 
 ## Architecture
 
