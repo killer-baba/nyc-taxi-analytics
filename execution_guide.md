@@ -18,7 +18,7 @@ This guide walks you through setting up and running the entire project from scra
 ### 1.1 Clone the Repository
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/killer-baba/nyc-taxi-analytics.git
 cd nyc-taxi-analytics
 ```
 
@@ -64,7 +64,7 @@ Open a Snowflake worksheet and run `setup_scripts/01_snowflake_setup.sql`. This 
 ### 2.2 Download Taxi Data
 
 ```bash
-python setup_scripts/load_data.py
+python setup_scripts/02_load_data.py
 ```
 
 Downloads 12 monthly Parquet files + zone lookup CSV (~3-4 GB) into a local `data/` folder.
@@ -88,7 +88,7 @@ Your account identifier is in your Snowflake URL: `https://<account-identifier>.
 ### 2.4 Load Data into Snowflake
 
 ```bash
-python setup_scripts/02_load_to_snowflake.py
+python setup_scripts/03_load_to_snowflake.py
 ```
 
 Uploads Parquet files to a Snowflake internal stage and loads into `RAW.yellow_tripdata`. Expected output: ~38.3 million rows loaded.
@@ -209,24 +209,18 @@ USE WAREHOUSE NYC_TAXI_WH;
 Airflow is included in `requirements.txt`. Initialize the database:
 
 ```bash
-export AIRFLOW_HOME=$(pwd)/airflow_home  # or set on Windows
+set AIRFLOW_HOME=%cd%\airflow_home  # for CMD Windows
 
 airflow db init
-airflow users create \
-    --username admin \
-    --firstname Admin \
-    --lastname User \
-    --role Admin \
-    --email admin@example.com \
-    --password admin
+airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin
 ```
 
 ### 6.2 Configure DAG Path
 
 ```bash
 # Copy the DAG to Airflow's dags folder
-mkdir -p $AIRFLOW_HOME/dags
-cp dags/nyc_taxi_daily_pipeline.py $AIRFLOW_HOME/dags/
+mkdir %AIRFLOW_HOME%\dags
+copy dags\nyc_taxi_daily_pipeline.py %AIRFLOW_HOME%\dags\
 ```
 
 Set the dbt project path as an environment variable:
@@ -270,9 +264,7 @@ The PySpark script processes historical data. It can be tested locally with the 
 ### 7.1 Run Locally
 
 ```bash
-spark-submit spark/process_historical.py \
-    --input data/ \
-    --output output/daily_revenue
+spark-submit spark/process_historical.py --input data/ --output output/daily_revenue
 ```
 
 This reads the 12 parquet files from `data/`, applies cleaning and filtering, computes daily revenue, and writes partitioned output to `output/daily_revenue/`.

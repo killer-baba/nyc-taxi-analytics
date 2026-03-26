@@ -37,11 +37,11 @@ A production-grade data engineering pipeline built on the **NYC TLC Yellow Taxi 
   └────────┬─────────┘
            │
            ▼
-  ┌──────────────────────────────────────────────────────┐
-  │                 Snowflake (NYC_TAXI_DB)               │
-  │                                                       │
+  ┌─────────────────────────────────────────────────────┐
+  │                 Snowflake (NYC_TAXI_DB)             │
+  │                                                     │
   │  ┌─────────┐   ┌──────────────┐   ┌──────────────┐  │
-  │  │   RAW   │──▶│   STAGING    │──▶│ INTERMEDIATE │  │
+  │  │   RAW   │──▶│   STAGING    │──▶│ INTERMEDIATE │ │
   │  │         │   │              │   │              │  │
   │  │ yellow_ │   │ stg_yellow_  │   │ int_trips_   │  │
   │  │tripdata │   │ trips        │   │ enriched     │  │
@@ -49,20 +49,20 @@ A production-grade data engineering pipeline built on the **NYC TLC Yellow Taxi 
   │  │         │   │ zones        │   │ (joins +     │  │
   │  │(source) │   │ (views)      │   │  filters)    │  │
   │  └─────────┘   └──────────────┘   └──────┬───────┘  │
-  │                                           │          │
-  │                                           ▼          │
-  │                                   ┌──────────────┐   │
-  │                                   │    MARTS     │   │
-  │                                   │              │   │
-  │                                   │ fct_trips    │   │
-  │                                   │ dim_zones    │   │
-  │                                   │ agg_daily_   │   │
-  │                                   │  revenue     │   │
-  │                                   │ agg_zone_    │   │
-  │                                   │  performance │   │
-  │                                   │ (tables)     │   │
-  │                                   └──────────────┘   │
-  └──────────────────────────────────────────────────────┘
+  │                                           │         │
+  │                                           ▼         │
+  │                                   ┌──────────────┐  │
+  │                                   │    MARTS     │  │
+  │                                   │              │  │
+  │                                   │ fct_trips    │  │
+  │                                   │ dim_zones    │  │
+  │                                   │ agg_daily_   │  │
+  │                                   │  revenue     │  │
+  │                                   │ agg_zone_    │  │
+  │                                   │  performance │  │
+  │                                   │ (tables)     │  │
+  │                                   └──────────────┘  │
+  └─────────────────────────────────────────────────────┘
            ▲
            │  Orchestrated by
   ┌────────┴─────────┐
@@ -76,20 +76,20 @@ A production-grade data engineering pipeline built on the **NYC TLC Yellow Taxi 
 ### Dimensional Model
 
 ```
-                    ┌──────────────────┐
-                    │    dim_zones     │
-                    │                  │
-                    │ location_id (PK) │
-                    │ borough          │
-                    │ zone_name        │
-                    │ service_zone     │
-                    └────────┬─────────┘
-                             │
-          ┌──────────────────┼──────────────────┐
-          │ pickup_location  │ dropoff_location  │
-          │                  │                   │
-  ┌───────┴──────────────────┴───────────────┐
-  │              fct_trips                    │
+               ┌──────────────────┐
+               │    dim_zones     │
+               │                  │
+               │ location_id (PK) │
+               │ borough          │
+               │ zone_name        │
+               │ service_zone     │
+               └────────┬─────────┘
+                        │
+     ┌──────────────────┼──────────────────┐
+     │ pickup_location  │ dropoff_location │
+     │                  │                  │
+  ┌──┴─────────────────────────────────────┴─┐
+  │              fct_trips                   │
   │                                          │
   │  trip_id (PK)          fare_amount       │
   │  pickup_datetime       tip_amount        │
@@ -163,7 +163,7 @@ Each component has its own detailed README. Start here for the overview, then di
 | [`queries/README.md`](queries/README.md) | Each query explained with approach, expected output, performance strategies, verified runtimes |
 | [`spark/README.md`](spark/README.md) | Processing pipeline, optimization decisions table, EMR vs Glue comparison, deployment instructions |
 | [`setup_scripts/README.md`](setup_scripts/README.md) | Execution order for environment initialization, troubleshooting notes |
-| [`EXECUTION_GUIDE.md`](EXECUTION_GUIDE.md) | Step-by-step instructions to reproduce the entire project from scratch |
+| [`EXECUTION_GUIDE.md`](execution-guide.md) | Step-by-step instructions to reproduce the entire project from scratch |
 
 ---
 
@@ -275,13 +275,10 @@ Full performance analysis with cost/benefit per strategy in [`queries/README.md`
 
 ## AI Tools Usage
 
-This project was developed with **Claude (Anthropic)** as a technical mentor throughout the entire development process. The approach was deliberately step-by-step: understand the concept, discuss trade-offs, then implement.
+**Tool used**: Claude (Anthropic) — conversational AI assistant
 
-**How AI was used:**
-- **Architecture planning**: Discussed materialization strategies, layer design, dimensional modelling, and Snowflake schema design before writing any code
-- **Environment setup**: Guided through venv creation, dbt init, Snowflake configuration, and data loading — every command explained before execution
-- **Debugging**: Diagnosed Parquet timestamp loading issue (`USE_LOGICAL_TYPE`), surrogate key collisions (added deduplication), dbt 1.11 deprecation syntax changes, and Snowflake schema naming (`generate_schema_name` macro)
-- **Code generation**: AI provided code that was reviewed, understood, and tested before inclusion. Every file was verified against Snowflake before moving on.
-- **Documentation**: READMEs written incrementally during development, not retroactively. Each component's README was created alongside the code.
-
-**Productivity impact**: AI mentoring allowed for a more thorough and well-documented project than would have been possible in the same timeframe working solo. The primary speedup came from having immediate access to debugging knowledge (e.g., Parquet timestamp issues, dbt schema naming) and architectural patterns (e.g., blue/green deployment, Spark broadcast joins) without needing to search documentation.
+**How it was used**:
+- Discussed architecture decisions (materialization strategy, layer design) before implementation
+- Generated boilerplate code (dbt YAML configs, Airflow DAG structure, PySpark skeleton)
+- Debugged issues during development: Parquet timestamp loading (`USE_LOGICAL_TYPE`), dbt 1.11 syntax deprecations, Snowflake schema naming override, surrogate key collisions
+- Assisted with documentation drafting

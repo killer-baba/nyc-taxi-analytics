@@ -3,7 +3,7 @@ Load NYC TLC Yellow Taxi 2023 Parquet files into Snowflake.
 
 Prerequisites:
     1. Run 01_snowflake_setup.sql in Snowflake worksheet
-    2. Run load_data.py to download parquet files into data/ folder
+    2. Run 02_load_data.py to download parquet files into data/ folder
     3. Set environment variables: SNOWFLAKE_ACCOUNT, SNOWFLAKE_USER, SNOWFLAKE_PASSWORD
 
 Usage:
@@ -85,7 +85,7 @@ try:
     cur.execute("""
         COPY INTO yellow_tripdata
         FROM @yellow_taxi_stage
-          FILE_FORMAT = (TYPE = PARQUET)
+          FILE_FORMAT = (TYPE = PARQUET USE_LOGICAL_TYPE = TRUE)
           MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE
     """)
     print("Data loaded.")
