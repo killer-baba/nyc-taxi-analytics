@@ -163,7 +163,7 @@ Each component has its own detailed README. Start here for the overview, then di
 | [`queries/README.md`](queries/README.md) | Each query explained with approach, expected output, performance strategies, verified runtimes |
 | [`spark/README.md`](spark/README.md) | Processing pipeline, optimization decisions table, EMR vs Glue comparison, deployment instructions |
 | [`setup_scripts/README.md`](setup_scripts/README.md) | Execution order for environment initialization, troubleshooting notes |
-| [`EXECUTION_GUIDE.md`](EXECUTION_GUIDE.md) | Step-by-step instructions to reproduce the entire project from scratch |
+| [`EXECUTION_GUIDE.md`](execution_guide.md) | Step-by-step instructions to reproduce the entire project from scratch |
 
 ---
 
