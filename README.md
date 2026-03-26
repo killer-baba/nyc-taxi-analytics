@@ -129,26 +129,26 @@ A production-grade data engineering pipeline built on the **NYC TLC Yellow Taxi 
 │   ├── macros/                 # Custom schema routing macro
 │   ├── dbt_project.yml
 │   ├── profiles.yml.example
-│   └── README.md               # 📖 Detailed DBT pipeline documentation
+│   └── README.md               # Detailed DBT pipeline documentation
 ├── dags/                       # Airflow DAG
 │   ├── nyc_taxi_daily_pipeline.py
-│   └── README.md               # 📖 DAG architecture + blue/green brainstormer
+│   └── README.md               # DAG architecture + blue/green brainstormer
 ├── queries/                    # Standalone analytical SQL
 │   ├── q1_top_zones_by_revenue.sql
 │   ├── q2_hour_of_day_pattern.sql
 │   ├── q3_consecutive_gap_analysis.sql
-│   └── README.md               # 📖 Query explanations + performance strategies
+│   └── README.md               # Query explanations + performance strategies
 ├── spark/                      # PySpark historical processing (bonus)
 │   ├── process_historical.py
-│   └── README.md               # 📖 Spark optimizations + EMR/Glue deployment
+│   └── README.md               # Spark optimizations + EMR/Glue deployment
 ├── setup_scripts/              # One-time environment setup
 │   ├── 01_snowflake_setup.sql
 │   ├── 02_load_to_snowflake.py
 │   ├── load_data.py
-│   └── README.md               # 📖 Setup script execution order
+│   └── README.md               # Setup script execution order
 ├── requirements.txt
 ├── .gitignore
-├── EXECUTION_GUIDE.md          # 📖 Step-by-step setup and run instructions
+├── EXECUTION_GUIDE.md          # Step-by-step setup and run instructions
 └── README.md                   # ← You are here
 ```
 
@@ -163,7 +163,7 @@ Each component has its own detailed README. Start here for the overview, then di
 | [`queries/README.md`](queries/README.md) | Each query explained with approach, expected output, performance strategies, verified runtimes |
 | [`spark/README.md`](spark/README.md) | Processing pipeline, optimization decisions table, EMR vs Glue comparison, deployment instructions |
 | [`setup_scripts/README.md`](setup_scripts/README.md) | Execution order for environment initialization, troubleshooting notes |
-| [`EXECUTION_GUIDE.md`](execution-guide.md) | Step-by-step instructions to reproduce the entire project from scratch |
+| [`EXECUTION_GUIDE.md`](EXECUTION_GUIDE.md) | Step-by-step instructions to reproduce the entire project from scratch |
 
 ---
 
